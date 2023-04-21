@@ -21,7 +21,9 @@ pacman::p_load(tidyverse)
 exam_data <-read_csv("Exam_data.csv")
 ```
 
-# Plotting a simple bar chart
+# Plotting
+
+## Plotting a simple bar chart
 
 ```{r}
 ggplot(data=exam_data,
@@ -34,6 +36,9 @@ ggplot(data=exam_data,
        x="Count")
   
 ```
+
+## Sorted bar charts with frequencies and percentages
+
 ```{r}
 ggplot(data=exam_data,
        aes(x=forcats::fct_infreq(RACE)))+
@@ -47,6 +52,9 @@ ggplot(data=exam_data,
       round(..count../sum(..count..)*100, 1), "%")),
       vjust=-1)
 ```
+
+## Adding mean and median lines on histogram plot
+
 ```{r}
 ggplot(data=exam_data,
        aes(x=MATHS))+
@@ -65,6 +73,9 @@ ggplot(data=exam_data,
              size=1)
   
 ```
+
+## Background histogram for added context
+
 ```{r}
 ggplot(data=exam_data,
        aes(x=ENGLISH, fill=GENDER))+
@@ -74,6 +85,9 @@ ggplot(data=exam_data,
   guides(fill="none")+
   theme_bw()
 ```
+
+## Relationship between English and Maths scores
+
 ```{r}
 ggplot(data=exam_data,
        aes(x=MATHS, y=ENGLISH))+
