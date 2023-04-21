@@ -76,7 +76,7 @@ ggplot(data=exam_data,
 
 ## Background histogram for added context
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 ggplot(data=exam_data,
        aes(x=ENGLISH, fill=GENDER))+
   geom_histogram(data=exam_data[,-3], fill='grey', alpha=0.5)+
