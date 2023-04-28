@@ -1,5 +1,6 @@
 ---
-title: "Hands-on_Ex03"
+title: "Hands-on Exercise 3"
+Author: Huynh Minh Phuong 
 ---
 
 # Interactive Data Visualization
