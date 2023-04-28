@@ -265,6 +265,7 @@ girafe(code = print(p1 + p2),
 ### *plot_ly()* method
 
 ```{r}
+#| message: false
 plot_ly(data = exam_data, 
         x = ~ENGLISH, 
         y = ~MATHS, 
@@ -337,6 +338,7 @@ pacman::p_load(readxl, gifski, gapminder,
 ```
 ### Import data
 ```{r}
+#| warning: false
 col <- c("Country", "Continent")
 globalPop <- read_xls("data/GlobalPopulation.xls",
                       sheet="Data") %>%
@@ -377,6 +379,7 @@ ggplot(globalPop, aes(x = Old, y = Young,
 ## plotly method 
 ### Build animated bubble plot with *ggplotly()*
 ```{r}
+#| warning: false
 gg <- ggplot(globalPop, 
        aes(x = Old, 
            y = Young, 
@@ -396,6 +399,7 @@ ggplotly(gg)
 
 ### Build animated buble plot with *plot_ly()*
 ```{r}
+#| warning: false
 bp <- globalPop %>%
   plot_ly(x = ~Old, 
           y = ~Young, 
