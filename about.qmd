@@ -10,5 +10,5 @@ This website is my portfolio to showcase the different exercises that I have don
 
 **Take-home Exercises** are mini projects that allow me to apply the skills I have learnt.
 
-```{}
+```         
 ```
