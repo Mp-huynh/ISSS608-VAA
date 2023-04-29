@@ -1,6 +1,6 @@
 ---
 title: "In-class Exercise 3"
 author: "Huynh Minh Phuong"
-date: 29 April 2023
+date: 29 Apr 2023
 edit: visual
 ---
