@@ -187,5 +187,40 @@
     "title": "Hands-on_Ex04",
     "section": "Funnel Plot for Fair Visual Comparison: ggplot2 methods",
     "text": "Funnel Plot for Fair Visual Comparison: ggplot2 methods\nDerive cumulative death rate and standard error of cumulative death rate.\n\ndf <- covid19 %>%\n  mutate(rate = Death / Positive) %>%\n  mutate(rate.se = sqrt((rate*(1-rate)) / (Positive))) %>%\n  filter(rate > 0)\n\nCompute fit.mean\n\nfit.mean <- weighted.mean(df$rate, 1/df$rate.se^2)\n\nCalculate lower and upper limits for 95% and 99.9% CI\n\nnumber.seq <- seq(1, max(df$Positive), 1)\nnumber.ll95 <- fit.mean - 1.96 * sqrt((fit.mean*(1-fit.mean)) / (number.seq)) \nnumber.ul95 <- fit.mean + 1.96 * sqrt((fit.mean*(1-fit.mean)) / (number.seq)) \nnumber.ll999 <- fit.mean - 3.29 * sqrt((fit.mean*(1-fit.mean)) / (number.seq)) \nnumber.ul999 <- fit.mean + 3.29 * sqrt((fit.mean*(1-fit.mean)) / (number.seq)) \ndfCI <- data.frame(number.ll95, number.ul95, number.ll999, \n                   number.ul999, number.seq, fit.mean)\n\n\nPlot a static funnel plot\n\np <- ggplot(df, aes(x = Positive, y = rate)) +\n  geom_point(aes(label=`Sub-district`), \n             alpha=0.4) +\n  geom_line(data = dfCI, \n            aes(x = number.seq, \n                y = number.ll95), \n            size = 0.4, \n            colour = \"grey40\", \n            linetype = \"dashed\") +\n  geom_line(data = dfCI, \n            aes(x = number.seq, \n                y = number.ul95), \n            size = 0.4, \n            colour = \"grey40\", \n            linetype = \"dashed\") +\n  geom_line(data = dfCI, \n            aes(x = number.seq, \n                y = number.ll999), \n            size = 0.4, \n            colour = \"grey40\") +\n  geom_line(data = dfCI, \n            aes(x = number.seq, \n                y = number.ul999), \n            size = 0.4, \n            colour = \"grey40\") +\n  geom_hline(data = dfCI, \n             aes(yintercept = fit.mean), \n             size = 0.4, \n             colour = \"grey40\") +\n  coord_cartesian(ylim=c(0,0.05)) +\n  annotate(\"text\", x = 1, y = -0.13, label = \"95%\", size = 3, colour = \"grey40\") + \n  annotate(\"text\", x = 4.5, y = -0.18, label = \"99%\", size = 3, colour = \"grey40\") + \n  ggtitle(\"Cumulative Fatality Rate by Cumulative Number of COVID-19 Cases\") +\n  xlab(\"Cumulative Number of COVID-19 Cases\") + \n  ylab(\"Cumulative Fatality Rate\") +\n  theme_light() +\n  theme(plot.title = element_text(size=12),\n        legend.position = c(0.91,0.85), \n        legend.title = element_text(size=7),\n        legend.text = element_text(size=7),\n        legend.background = element_rect(colour = \"grey60\", linetype = \"dotted\"),\n        legend.key.height = unit(0.3, \"cm\"))\n\nWarning in geom_point(aes(label = `Sub-district`), alpha = 0.4): Ignoring\nunknown aesthetics: label\n\np\n\n\n\n\n\n\nPlot Interactive funnel plot\nUse ggplotly() of plotly r package.\n\nfp_ggplotly <- ggplotly(p,\n  tooltip = c(\"label\", \n              \"x\", \n              \"y\"))\nfp_ggplotly"
+  },
+  {
+    "objectID": "In-class_Ex/In-class_Ex04/In-class_Ex04.html",
+    "href": "In-class_Ex/In-class_Ex04/In-class_Ex04.html",
+    "title": "In-class Exercise 4",
+    "section": "",
+    "text": "pacman::p_load(ggstatsplot, rstatix, gt, patchwork, tidyverse)\n\n\n\n\n\nexam_data <- read_csv(\"data/Exam_data.csv\")"
+  },
+  {
+    "objectID": "In-class_Ex/In-class_Ex04/In-class_Ex04.html#the-plot",
+    "href": "In-class_Ex/In-class_Ex04/In-class_Ex04.html#the-plot",
+    "title": "In-class Exercise 4",
+    "section": "The Plot",
+    "text": "The Plot"
+  },
+  {
+    "objectID": "In-class_Ex/In-class_Ex04/In-class_Ex04.html#the-code-chunk",
+    "href": "In-class_Ex/In-class_Ex04/In-class_Ex04.html#the-code-chunk",
+    "title": "In-class Exercise 4",
+    "section": "The code chunk",
+    "text": "The code chunk\n\nggplot(exam_data,\n       aes(sample = ENGLISH)) +\n  stat_qq() +\n  stat_qq_line()\n\n:::\n\n\n\n\n\n\nNote\n\n\n\nWe can see that the points deviate significantly from the straight diagonal line. This is a clear indication that the set of data is not normally distributed."
+  },
+  {
+    "objectID": "In-class_Ex/In-class_Ex04/In-class_Ex04.html#one-sample-test",
+    "href": "In-class_Ex/In-class_Ex04/In-class_Ex04.html#one-sample-test",
+    "title": "In-class Exercise 4",
+    "section": "One sample test",
+    "text": "One sample test\n\nset.seed(1234)\n\ngghistostats(\n  data = exam_data,\n  x = ENGLISH,\n  type = \"p\",\n  test.value = 60,\n  xlab = \"English scores\"\n)"
+  },
+  {
+    "objectID": "In-class_Ex/In-class_Ex04/In-class_Ex04.html#two-sample-test",
+    "href": "In-class_Ex/In-class_Ex04/In-class_Ex04.html#two-sample-test",
+    "title": "In-class Exercise 4",
+    "section": "Two sample test",
+    "text": "Two sample test\n\nggbetweenstats(\n  data = exam_data,\n  x = GENDER, \n  y = MATHS,\n  type = \"p\",\n  messages = FALSE\n)"
   }
 ]
