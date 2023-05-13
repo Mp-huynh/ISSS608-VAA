@@ -1,0 +1,448 @@
+---
+title: "Take-home Exercise 1"
+author: "Huynh Minh Phuong"
+date: "14 May 2023"
+date-modified: "`r Sys.Date()`"
+execute:
+  echo: true 
+  eval: true
+  warning: false
+---
+
+# Overview
+
+A sample survey of representative residents of City of Engagement located at Country of Nowhere was conducted to collect data related to demographic and spending patterns. This data will be used to assist in community revitalization efforts, including how to allocate city renewal grant.
+
+The objective is to use appropriate static and interactive statistical graphics methods to provide an user-friendly and interactive solution that helps city managers and planners to explore the complex data in an engaging way and reveal hidden patterns.
+
+# Dataset
+
+Two datasets are provided:
+
+-   *Participants.csv*: provides demographic information about the residents
+
+-   *FinancialJournal.csv*: contain information about financial transactions for different expense categories
+
+# Data Preparation
+
+## Install and load packages
+
+```{r}
+pacman::p_load(plotly, ggstatsplot, knitr, patchwork, ggdist, ggthemes, tidyverse)
+```
+
+## Import and view datasets
+
+Load demographic data and data summary statistics
+
+```{r}
+demo_info<-read_csv("data/Participants.csv")
+summary(demo_info)
+
+```
+
+View all columns and data type for each column
+
+```{r}
+glimpse(demo_info)
+```
+
+`is.na()` function is also used to confirm that there are no missing values in the *demo_info* dataset.
+
+```{r}
+#Check for mising values
+any(is.na(demo_info))
+
+```
+
+```{r}
+# check unique values and their frequency for each column
+demo_info
+```
+
+Load financial transaction data and check summary statistics
+
+```{r}
+transactions<-read_csv("data/FinancialJournal.csv")
+summary(transactions)
+
+```
+
+View all columns and data type for each column
+
+```{r}
+glimpse(transactions)
+```
+Check for missing values
+```{r}
+any(is.na(transactions))
+```
+
+## Data Cleaning and Wrangling
+
+Looking at the data summary, we notice a few problems:
+
+### Wrong data type 
+
+Data type is character for nominal data (participantId), categorical data (interestGroup in demo_info and category in transactions) and ordinal data (educationLevel in demo_info). We need to use `as.factor()` to convert these attributes to the correct data type. We also need to add order to the educationLevel. 
+
+Also the data type is wrong for householdSize in demo_info, we used `as.integer()` to convert householdSize to discrete data. 
+```{r}
+# Nominal and Categorical data
+demo_info$participantId<-as.factor(demo_info$participantId)
+transactions$participantId<-as.factor(transactions$participantId)
+
+demo_info$educationLevel<-as.factor(demo_info$educationLevel)
+demo_info$interestGroup<- as.factor(demo_info$interestGroup)
+transactions$category<-as.factor(transactions$category)
+
+# Check categories in educationLevel using levels()
+
+levels(demo_info$educationLevel)
+
+# Assign orders to ordinal data educationLevel
+
+demo_info$educationLevel<-factor((demo_info$educationLevel),
+                                 levels=c("Low","HighSchoolOrCollege",                                               "Bachelors", "Graduate"))
+
+
+# Discrete data
+
+demo_info$householdSize<-as.integer(demo_info$householdSize)
+```
+### Duplicated Data
+
+Duplicated data is detected by select rows with duplicate data for financial journal. Since at each timestamp there can only be one single transaction of the same category and amount, the duplicate data should be excluded from analysis. 
+```{r}
+#check for duplicates; find all rows with the same values for all columns
+transactions[duplicated(transactions),]
+```
+In total, 1113 rows of duplicate data were hidden and excluded from analysis. `distinct()` function is used to keep only unique/distinct rows from a data frame. If there are duplicate rows, only the first row is preserved. 
+```{r}
+#Remove duplicate rows
+transactions<-transactions %>% distinct()
+
+# Check that duplicates have been removed
+transactions[duplicated(transactions),]
+```
+
+### Convert negative transactions value to positive
+
+```{r}
+transactions$amount <-abs(transactions$amount)
+```
+
+### Extract month from timestamp and get monthly expense data
+
+Since wage and expenses such as shelter are paid monthly and there are only 12 months (3/2022 to 2/2023) in the dataset, only month data is needed from the timestamp column. 
+```{r}
+transactions <-transactions %>% 
+  mutate(month=month(timestamp))
+
+summary(transactions)
+```
+
+```{r}
+# Use group by to get monthly expense by participantID, month and category
+
+transactions<-transactions %>%
+  select(participantId,month,category,amount) %>% 
+  group_by(participantId,month,category)%>%
+  summarize(monthly_amt=sum(amount))
+
+transactions
+```
+
+### Convert transaction category to columns
+
+```{r}
+# Put value 0 for missing values, rental adjustment category is not applicable for all participants 
+transactions_amt<-transactions %>% 
+  pivot_wider(
+    names_from=category,
+    values_from=monthly_amt,
+    values_fill = 0)
+
+transactions_amt
+```
+
+### Group Shelter and Rental Adjustment as Rental expense
+
+The actual rental expense should take into account the rental adjustment for an accurate presentation. Rental expense is calculated by the following formula: 
+Rental expense=Shelter - RentAdjustment 
+
+We will also get the total spending from combining all expenses.
+```{r}
+transactions_amt<-transactions_amt%>% 
+  mutate(Rent=Shelter - RentAdjustment) %>% 
+  mutate(Monthly_spend=sum(Education, Food, Recreation, Rent))
+
+summary(transactions_amt)
+```
+### Get median monthly spending and join tables
+
+```{r}
+median_spend<-transactions_amt %>% 
+ select(participantId,Education, Food, Recreation, Rent, Monthly_spend, Wage) %>% 
+  group_by(participantId)%>%
+  summarize(Education=median(Education),
+            Food=median(Food),
+            Recreation=median(Recreation),
+            Wage=median(Wage),
+            Rent=median(Rent),
+            Monthly_spend=median(Monthly_spend))
+summary(median_spend)
+```
+
+In order to understand whether different demographics have difference in spending pattern or financial health, the two tables need to be combined using participantId as key. 
+
+```{r}
+combined<-left_join(demo_info, median_spend, by ="participantId")
+
+summary(combined)
+```
+
+# Data Visualization
+
+## Demographics of town
+
+### Distribution of each attributes: Age, Household Size, Interest Group,  Children status and education level
+```{r}
+# Distribution of Children Status
+p1<-demo_info %>% 
+  count(haveKids=factor(haveKids)) %>% 
+  mutate(pct=prop.table(n)) %>% 
+  ggplot(aes(x = haveKids, y=n)) +
+  geom_col()+
+  geom_text(aes(x=haveKids, y= n,
+                label=paste0(n,"\n(", round(pct*100,1),"%)"),
+                vjust=-0.5))+
+  ggtitle("Distribution of Children Status")+
+  theme_minimal()+
+  xlab("Children Status")+
+  ylab("Count")+
+  ylim(c(0,800))
+
+# Distribution of Education levels
+p2<-demo_info %>% 
+  count(educationLevel) %>% 
+  mutate(pct=prop.table(n)) %>%
+  arrange(factor(educationLevel)) %>% 
+  ggplot(aes(x = reorder(educationLevel, -n), y=n)) +
+  geom_col()+
+  geom_text(aes(x=educationLevel, y= n,
+                label=paste0(n,"\n(", round(pct*100,1),"%)"),
+                vjust=-0.5))+
+  ggtitle("Distribution of Education Levels")+
+  theme_minimal()+
+  xlab("Education Levels")+
+  ylab("Count")+
+  ylim(c(0,600))+
+  theme(axis.text.x = element_text(angle=20))
+
+# Distribution of Interest Groups
+p3<-demo_info %>% 
+  count(interestGroup) %>% 
+  mutate(pct=prop.table(n)) %>%
+  arrange(factor(interestGroup)) %>% 
+  ggplot(aes(x = reorder(interestGroup, -n), y=n)) +
+  geom_col()+
+  geom_text(aes(x=interestGroup, y= n,
+                label=paste0(n,"\n(", round(pct*100,1),"%)"),
+                vjust=-0.5))+
+  ggtitle("Distribution of Interest Groups")+
+  theme_minimal()+
+  xlab("Interest Groups")+
+  ylab("Count")+
+  ylim(c(0,200))
+
+# Distribution of householdSize
+p4<-demo_info %>% 
+  count(householdSize) %>% 
+  mutate(pct=prop.table(n)) %>%
+  arrange(factor(householdSize)) %>% 
+  ggplot(aes(x = reorder(householdSize, -n), y=n)) +
+  geom_col()+
+  geom_text(aes(x=householdSize, y= n,
+                label=paste0(n,
+                             "\n(", 
+                             round(pct*100,1),
+                             "%)"),
+                vjust=-0.5))+
+  ggtitle("Distribution of Household Size")+
+  theme_minimal()+
+  xlab("Household Size")+
+  ylab("Count")+
+  ylim(c(0,500))
+
+#Distribution of age
+p5<-ggplot(data=demo_info,aes(x=age))+
+  geom_histogram(bins=20)+
+    labs(y="Count",
+       x="age")+
+    geom_vline(aes(xintercept=mean(age, na.rm=T)),
+             color="red", 
+             linetype="dashed", 
+             linewidth=1)+
+    geom_vline(aes(xintercept=median(age, na.rm=T)),
+             color="grey30",
+             linetype="dashed", 
+             linewidth=1)+
+  ggtitle("Distribution of Age")+
+  theme_minimal()+
+  xlab("Age")+
+  ylab("Count")+
+  ylim(c(0,120))  
+```
+
+```{r}
+p4
+```
+
+
+```{r}
+# Chi squared test for relationship between Children Status and Education Level
+p6<-ggbarstats(demo_info,
+               x=haveKids,
+               y=educationLevel,
+               label="both"
+               ) 
+# Chi squared test for relationship between Children Status and Interest Groups
+p7<-ggbarstats(demo_info,
+               x=haveKids,
+               y=interestGroup,
+               label="both"
+               ) 
+# Chi squared test for relationship between Education Level and Interest Group
+p8<-ggbarstats(demo_info,
+               x=educationLevel,
+               y=interestGroup,
+               label="both"
+               ) 
+# Chi squared test for relationship between Household Size and Education Levels
+p9<-ggbarstats(demo_info,
+               x=householdSize,
+               y=educationLevel,
+               label="both"
+               ) 
+
+# Chi squared test for relationship between Household Size and Interest Group
+p10<-ggbarstats(demo_info,
+               x=householdSize,
+               y=interestGroup,
+               label="both"
+               ) 
+
+# Chi squared test for relationship between Children Status and Household size
+p11<-ggbarstats(demo_info,
+               x=haveKids,
+               y=householdSize,
+               label="both"
+               ) 
+
+```
+
+```{r}
+#p6,p9, p10
+p11
+```
+```{r}
+
+```
+## Financial Health
+
+### Distribution
+
+```{r}
+ggplot(data=combined,aes(x=Food))+
+  geom_histogram(bins=100)+
+    labs(y="Count",
+       x="food")+
+    geom_vline(aes(xintercept=mean(Food, na.rm=T)),
+             color="red", 
+             linetype="dashed", 
+             linewidth=1)+
+    geom_vline(aes(xintercept=median(Food, na.rm=T)),
+             color="grey30",
+             linetype="dashed", 
+             linewidth=1)+
+  ggtitle("Distribution of Monthly Food Expenses")+
+  theme_minimal()+
+  xlab("Food")+
+  ylab("Count")+
+  ylim(c(0,120)) 
+```
+
+```{r}
+ggplot(data=combined,aes(x=Monthly_spend))+
+  geom_histogram(bins=50)+
+    labs(y="Count",
+       x="Monthly_spend")+
+    geom_vline(aes(xintercept=mean(Monthly_spend, na.rm=T)),
+             color="red", 
+             linetype="dashed", 
+             linewidth=1)+
+    geom_vline(aes(xintercept=median(Monthly_spend, na.rm=T)),
+             color="grey30",
+             linetype="dashed", 
+             linewidth=1)+
+  ggtitle("Distribution of Monthly Expenses")+
+  theme_minimal()+
+  xlab("Monthly Expenses")+
+  ylab("Count")+
+  ylim(c(0,80))
+```
+```{r}
+ggplot(data=combined,aes(x=Recreation))+
+  geom_histogram(bins=50)+
+    labs(y="Count",
+       x="Monthly_spend")+
+    geom_vline(aes(xintercept=mean(Recreation, na.rm=T)),
+             color="red", 
+             linetype="dashed", 
+             linewidth=1)+
+    geom_vline(aes(xintercept=median(Recreation, na.rm=T)),
+             color="grey30",
+             linetype="dashed", 
+             linewidth=1)+
+  ggtitle("Distribution of Recreation Expenses")+
+  theme_minimal()+
+  xlab("Recreation Expenses")+
+  ylab("Count")+
+  ylim(c(0,60))
+```
+```{r}
+ggplot(data=combined,aes(x=Rent))+
+  geom_histogram(bins=50)+
+    labs(y="Count",
+       x="Monthly_spend")+
+    geom_vline(aes(xintercept=mean(Rent, na.rm=T)),
+             color="red", 
+             linetype="dashed", 
+             linewidth=1)+
+    geom_vline(aes(xintercept=median(Rent, na.rm=T)),
+             color="grey30",
+             linetype="dashed", 
+             linewidth=1)+
+  ggtitle("Distribution of Rent")+
+  theme_minimal()+
+  xlab("Rent")+
+  ylab("Count")+
+  ylim(c(0,60))
+```
+##
+
+
+## Joviality 
+
+```{r}
+ggscatterstats(
+  data = combined,
+  x = Monthly_spend,
+  y =joviality,
+  marginal = FALSE,
+  )
+```
+### 
+
+

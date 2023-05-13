@@ -1,6 +1,10 @@
 ---
 title: "Hands-on_Ex04"
 author: "Huynh Minh Phuong"
+execute:
+  echo: true 
+  eval: true
+  warning: false
 ---
 
 # Visual Statistical analysis
@@ -351,6 +355,7 @@ exam %>%
 ## Visualising Uncertainty with Hypothetical Outcome Plots (HOPs)
 
 ```{r}
+#devtools::install_github("wilkelab/ungeviz", force = TRUE)
 library(ungeviz)
 ```
 
@@ -434,6 +439,7 @@ dfCI <- data.frame(number.ll95, number.ul95, number.ll999,
 ```
 
 ### Plot a static funnel plot
+
 ```{r}
 p <- ggplot(df, aes(x = Positive, y = rate)) +
   geom_point(aes(label=`Sub-district`), 
@@ -480,8 +486,10 @@ p <- ggplot(df, aes(x = Positive, y = rate)) +
 p
 ```
 
-### Plot Interactive funnel plot 
+### Plot Interactive funnel plot
+
 Use *ggplotly()* of plotly r package.
+
 ```{r}
 fp_ggplotly <- ggplotly(p,
   tooltip = c("label", 
